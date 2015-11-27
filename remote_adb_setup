@@ -1,0 +1,35 @@
+#!/bin/bash
+
+if [[ $# -ne 1 && $# -ne 2 ]]; then
+  cat <<'EOF'
+Usage: remote_adb_setup REMOTE_HOST [REMOTE_ADB]
+EOF
+  exit 1
+fi
+
+remote_host="$1"
+remote_adb="${2:-adb}"
+
+# Ensure adb is in the local machine's path.
+if ! which adb >/dev/null; then
+  echo "error: adb must be in your local machine's path."
+  exit 1
+fi
+
+if which kinit >/dev/null; then
+  # Allow ssh to succeed without typing your password multiple times.
+  kinit -R || kinit
+fi
+
+# Kill the adb server on the remote host.
+ssh "$remote_host" "$remote_adb kill-server"
+
+# Start the adb server locally.
+adb start-server
+
+#   5037: adb
+#   9998: http server
+ssh -C \
+    -R 5037:127.0.0.1:5037 \
+    -L 9998:127.0.0.1:9998 \
+    "$remote_host"
